@@ -1,4 +1,6 @@
-// TODO: Move all functions from Rust to Zig until phase 3
+//TODO: Create fetch function
+// TODO: Create decode function
+const OPCODES = @import("opcode");
 
 pub const CPU = struct {
     registers: Registers,
