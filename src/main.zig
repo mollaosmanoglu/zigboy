@@ -1,3 +1,4 @@
+// TODO: Review Gemini comments on phase 1 and phase 2 PR's
 const std = @import("std");
 const gameboy = @import("gameboy");
 

@@ -1,5 +1,18 @@
 // TODO: Move all functions from Rust to Zig until phase 3
 
+const Registers = struct {
+    a: u8 = 0,
+    b: u8 = 0,
+    c: u8 = 0,
+    d: u8 = 0,
+    e: u8 = 0,
+    f: u8 = 0,
+    h: u8 = 0,
+    l: u8 = 0,
+    sp: u16 = 0,
+    pc: u16 = 0,
+};
+
 pub const CPU = struct {
     registers: Registers,
     //HELPERS
@@ -8,7 +21,7 @@ pub const CPU = struct {
         const low: u16 = @as(u16, register_2);
         return high | low;
     }
-    fn deconstruct16bit(value: u16) struct { u8, u8 } {
+    fn deconstruct16bit(value: u16) .{ u8, u8 } {
         const high: u8 = @truncate(value >> 8);
         const low: u8 = @truncate(value);
         return .{ high, low };
@@ -31,7 +44,7 @@ pub const CPU = struct {
     pub fn setAF(self: *CPU, value: u16) void {
         const high, const low = deconstruct16bit(value);
         self.registers.a = high;
-        self.registers.f = low & 0xFF;
+        self.registers.f = low & 0xF0;
     }
     pub fn setBC(self: *CPU, value: u16) void {
         const high, const low = deconstruct16bit(value);
@@ -83,17 +96,4 @@ pub const CPU = struct {
         self.registers.f = self.registers.f & ~@as(u8, 0x10);
         self.registers.f = self.registers.f | @as(u8, @intFromBool(value) << 4);
     }
-};
-
-const Registers = struct {
-    a: u8 = 0,
-    b: u8 = 0,
-    c: u8 = 0,
-    d: u8 = 0,
-    e: u8 = 0,
-    f: u8 = 0,
-    h: u8 = 0,
-    l: u8 = 0,
-    sp: u16 = 0,
-    pc: u16 = 0,
 };
