@@ -1,3 +1,4 @@
+# Editor/IDE
 .vscode/
 .cursor/
 .cursorrules
@@ -5,4 +6,7 @@
 .cursorrules.txt
 .cursorrules.yml
 .cursorrules.yaml
-.cursorrules.yml
+
+# Zig build artifacts
+.zig-cache/
+zig-out/
