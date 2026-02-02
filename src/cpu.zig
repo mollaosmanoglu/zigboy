@@ -1,6 +1,6 @@
 //TODO: Create fetch function
-// TODO: Create decode function
-const OPCODES = @import("opcode");
+const opcode = @import("helpers/opcode");
+const memory = @import("memory");
 
 const Registers = struct {
     a: u8 = 0,
@@ -27,6 +27,31 @@ pub const CPU = struct {
         const high: u8 = @truncate(value >> 8);
         const low: u8 = @truncate(value);
         return .{ high, low };
+    }
+    //FETCH-DECODE-EXECUTE
+    pub fn fetch(self: *CPU, decoded: opcode.Opcode) !void {
+        self.registers.pc += decoded.bytes;
+    }
+    pub fn decode(byte: u8) opcode.Opcode {
+        return opcode.OPCODES[byte];
+    }
+    pub fn execute(self: *CPU, byte: u8, mem: *memory.Memory) !void {
+        switch (byte) {
+            0x00 => return, // NOP
+            0x3E => self.registers.a = mem.readByte(self.registers.pc + 1),
+            0x06 => self.registers.b = mem.readByte(self.registers.pc + 1),
+            0x0E => self.registers.c = mem.readByte(self.registers.pc + 1),
+            0x16 => self.registers.d = mem.readByte(self.registers.pc + 1),
+            0x1E => self.registers.e = mem.readByte(self.registers.pc + 1),
+            0x26 => self.registers.h = mem.readByte(self.registers.pc + 1),
+            0x2E => self.registers.l = mem.readByte(self.registers.pc + 1),
+            0x80 => self.registers.a = self.registers.a + self.registers.b,
+            0xC3 => {
+                const low: u16 = @as(u16, mem.readByte(self.registers.pc + 1));
+                const high: u16 = @as(u16, mem.readByte(self.registers.pc + 2));
+                self.registers.pc = (high << 8) | low;
+            },
+        }
     }
     //REGISTER PAIRS
     //getters
