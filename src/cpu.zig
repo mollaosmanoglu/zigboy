@@ -120,11 +120,14 @@ pub const CPU = struct {
                 }
             }, // core
             0x31 => return,
-            0x32 => return, // TODO: core - LDD (HL),A
+            0x32 => {
+                mem.writeByte(self.getHL(), self.registers.a);
+                self.setHL(self.getHL() - 1);
+            }, // core
             0x33 => return,
             0x34 => return,
             0x35 => return,
-            0x36 => return, // TODO: core - LD (HL),n
+            0x36 => mem.writeByte(self.getHL(), mem.readByte(self.registers.pc + 1)), // core
             0x37 => return,
             0x38 => {
                 if (self.getCFlag() == 0) {
@@ -135,7 +138,10 @@ pub const CPU = struct {
                 }
             }, // core
             0x39 => return,
-            0x3A => return, // TODO: core - LDD A,(HL)
+            0x3A => {
+                self.registers.a = mem.readByte(self.getHL());
+                self.setHL(self.getHL() - 1);
+            }, // core
             0x3B => return,
             0x3C => return,
             0x3D => return,
@@ -196,16 +202,16 @@ pub const CPU = struct {
             0x74 => return,
             0x75 => return,
             0x76 => return,
-            0x77 => return, // TODO: core - LD (HL),A
+            0x77 => mem.writeByte(self.getHL(), self.registers.a), // core
             0x78 => return,
             0x79 => return,
             0x7A => return,
             0x7B => return,
             0x7C => return,
             0x7D => return,
-            0x7E => return, // TODO: core - LD A,(HL)
+            0x7E => self.registers.a = mem.readByte(self.getHL()), // core
             0x7F => return,
-            0x80 => self.registers.a = self.registers.a + self.registers.b, // core (flags TODO)
+            0x80 => self.registers.a = self.registers.a + self.registers.b,
             0x81 => return,
             0x82 => return,
             0x83 => return,
