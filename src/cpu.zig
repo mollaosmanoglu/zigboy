@@ -1,6 +1,5 @@
-// TODO: Test with minimal ROM.
+// TODO: Test with minimal ROM ---> fix self.registers.pc, fix opcodes, add loops in main.
 // TODO: Clean up code thus far add error handling, and move to phase 4.
-const opcode = @import("helpers/opcode");
 const memory = @import("memory");
 
 const Registers = struct {
@@ -31,15 +30,10 @@ pub const CPU = struct {
         const low: u8 = @truncate(value);
         return .{ high, low };
     }
-    //FETCH-DECODE-EXECUTE
-    pub fn fetch(self: *CPU, decoded: opcode.Opcode) !void {
-        self.registers.pc += decoded.bytes;
-    }
-    pub fn decode(byte: u8) opcode.Opcode {
-        return opcode.OPCODES[byte];
-    }
-    pub fn execute(self: *CPU, byte: u8, mem: *memory.Memory) !void {
-        switch (byte) {
+    // step function
+    pub fn step(self: *CPU, mem: *memory.Memory) !void {
+        const opcode = mem.readByte(self.registers.pc);
+        switch (opcode) {
             0x00 => return, // core
             0x01 => { // core
                 const low: u16 = @as(u16, mem.readByte(self.registers.pc + 1));
