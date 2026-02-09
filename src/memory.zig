@@ -5,6 +5,9 @@ pub const Memory = struct {
     vram: Vram,
     wram: Wram,
     hram: Hram,
+    pub fn init(rom: cartridge.ROM) Memory {
+        return .{ .rom = rom, .vram = .{}, .wram = .{}, .hram = .{} };
+    }
     pub fn readByte(self: *Memory, address: u16) u8 {
         return switch (address) {
             0x0000...0x7FFF => self.rom.bytes[address],

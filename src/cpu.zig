@@ -18,6 +18,10 @@ const Registers = struct {
 
 pub const CPU = struct {
     registers: Registers,
+    //init
+    pub fn init() CPU {
+        return .{ .registers = .{} };
+    }
     //HELPERS
     fn combine8bits(high: u8, low: u8) u16 {
         return (@as(u16, high) << 8) | @as(u16, low);
@@ -395,73 +399,73 @@ pub const CPU = struct {
             0xFF => return,
         }
     }
-    //REGISTER PAIRS
-    //getters
-    pub fn getAF(self: CPU) u16 {
+    // REGISTER PAIRS (private helpers)
+    // getters
+    fn getAF(self: CPU) u16 {
         return combine8bits(self.registers.a, self.registers.f);
     }
-    pub fn getBC(self: CPU) u16 {
+    fn getBC(self: CPU) u16 {
         return combine8bits(self.registers.b, self.registers.c);
     }
-    pub fn getDE(self: CPU) u16 {
+    fn getDE(self: CPU) u16 {
         return combine8bits(self.registers.d, self.registers.e);
     }
-    pub fn getHL(self: CPU) u16 {
+    fn getHL(self: CPU) u16 {
         return combine8bits(self.registers.h, self.registers.l);
     }
-    //setters
-    pub fn setAF(self: *CPU, value: u16) void {
+    // setters
+    fn setAF(self: *CPU, value: u16) void {
         const high, const low = deconstruct16bit(value);
         self.registers.a = high;
         self.registers.f = low & 0xF0;
     }
-    pub fn setBC(self: *CPU, value: u16) void {
+    fn setBC(self: *CPU, value: u16) void {
         const high, const low = deconstruct16bit(value);
         self.registers.b = high;
         self.registers.c = low;
     }
-    pub fn setDE(self: *CPU, value: u16) void {
+    fn setDE(self: *CPU, value: u16) void {
         const high, const low = deconstruct16bit(value);
         self.registers.d = high;
         self.registers.e = low;
     }
-    pub fn setHL(self: *CPU, value: u16) void {
+    fn setHL(self: *CPU, value: u16) void {
         const high, const low = deconstruct16bit(value);
         self.registers.h = high;
         self.registers.l = low;
     }
-    //FLAG REGISTERS
-    //getters
-    pub fn getZFlag(self: CPU) bool {
+    // FLAG REGISTERS (private helpers)
+    // getters
+    fn getZFlag(self: CPU) bool {
         const mask: u8 = 0x80;
         return (self.registers.f & mask) != 0;
     }
-    pub fn getNFlag(self: CPU) bool {
+    fn getNFlag(self: CPU) bool {
         const mask: u8 = 0x40;
         return (self.registers.f & mask) != 0;
     }
-    pub fn getHFlag(self: CPU) bool {
+    fn getHFlag(self: CPU) bool {
         const mask: u8 = 0x20;
         return (self.registers.f & mask) != 0;
     }
-    pub fn getCFlag(self: CPU) bool {
+    fn getCFlag(self: CPU) bool {
         const mask: u8 = 0x10;
         return (self.registers.f & mask) != 0;
     }
-    //setters
-    pub fn setZFlag(self: *CPU, value: bool) void {
+    // setters
+    fn setZFlag(self: *CPU, value: bool) void {
         self.registers.f = self.registers.f & ~@as(u8, 0x80);
         self.registers.f = self.registers.f | @as(u8, @intFromBool(value) << 7);
     }
-    pub fn setNFlag(self: *CPU, value: bool) void {
+    fn setNFlag(self: *CPU, value: bool) void {
         self.registers.f = self.registers.f & ~@as(u8, 0x40);
         self.registers.f = self.registers.f | @as(u8, @intFromBool(value) << 6);
     }
-    pub fn setHFlag(self: *CPU, value: bool) void {
+    fn setHFlag(self: *CPU, value: bool) void {
         self.registers.f = self.registers.f & ~@as(u8, 0x20);
         self.registers.f = self.registers.f | @as(u8, @intFromBool(value) << 5);
     }
-    pub fn setCFlag(self: *CPU, value: bool) void {
+    fn setCFlag(self: *CPU, value: bool) void {
         self.registers.f = self.registers.f & ~@as(u8, 0x10);
         self.registers.f = self.registers.f | @as(u8, @intFromBool(value) << 4);
     }
