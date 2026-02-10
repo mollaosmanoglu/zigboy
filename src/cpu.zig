@@ -1,6 +1,8 @@
-// TODO: Test with minimal ROM ---> fix self.registers.pc, fix opcodes, add loops in main.
 // TODO: Clean up code thus far add error handling, and move to phase 4.
-const memory = @import("memory");
+const memory = @import("memory.zig");
+const opcode_info = @import("helpers/opcode.zig");
+
+const CPUError = error{OpcodeNotFound};
 
 const Registers = struct {
     a: u8 = 0,
@@ -25,15 +27,19 @@ pub const CPU = struct {
     fn combine8bits(high: u8, low: u8) u16 {
         return (@as(u16, high) << 8) | @as(u16, low);
     }
-    fn deconstruct16bit(value: u16) .{ u8, u8 } {
+    fn deconstruct16bit(value: u16) struct { u8, u8 } {
         const high: u8 = @truncate(value >> 8);
         const low: u8 = @truncate(value);
         return .{ high, low };
     }
     // step function
     pub fn step(self: *CPU, mem: *memory.Memory) !void {
-        const opcode = mem.readByte(self.registers.pc);
-        switch (opcode) {
+        const opcode = mem.readByte(self.registers.pc); //fetch
+        const info = opcode_info.OPCODES[opcode]; //decode
+
+        var pc_changed: bool = false;
+
+        switch (opcode) { //execute
             0x00 => return, // core
             0x01 => { // core
                 const low: u16 = @as(u16, mem.readByte(self.registers.pc + 1));
@@ -63,8 +69,11 @@ pub const CPU = struct {
             0x16 => self.registers.d = mem.readByte(self.registers.pc + 1), // core
             0x17 => return,
             0x18 => {
-                const offset: i8 = @bitCast(mem.readByte(self.registers.pc + 1));
-                self.registers.pc = self.registers.pc + @as(u16, offset) + 2;
+                const pc_i16: i16 = @bitCast(self.registers.pc);
+                const offset: i16 = @as(i16, mem.readByte(self.registers.pc + 1));
+                const result: i16 = pc_i16 + offset + 2;
+                self.registers.pc = @intCast(result);
+                pc_changed = true;
             }, // core
             0x19 => return,
             0x1A => return,
@@ -74,12 +83,15 @@ pub const CPU = struct {
             0x1E => self.registers.e = mem.readByte(self.registers.pc + 1), // core
             0x1F => return,
             0x20 => {
-                if (self.getZFlag() == 0) {
-                    const offset: i8 = @bitCast(mem.readByte(self.registers.pc + 1));
-                    self.registers.pc = self.registers.pc + @as(u16, offset) + 2;
+                if (self.getZFlag() == false) {
+                    const pc_i16: i16 = @bitCast(self.registers.pc);
+                    const offset: i16 = @as(i16, mem.readByte(self.registers.pc + 1));
+                    const result: i16 = pc_i16 + offset + 2;
+                    self.registers.pc = @intCast(result);
                 } else {
                     self.registers.pc = self.registers.pc + 2;
                 }
+                pc_changed = true;
             }, // core
             0x21 => return,
             0x22 => {
@@ -92,12 +104,15 @@ pub const CPU = struct {
             0x26 => self.registers.h = mem.readByte(self.registers.pc + 1), // core
             0x27 => return,
             0x28 => {
-                if (self.getZFlag() == 1) {
-                    const offset: i8 = @bitCast(mem.readByte(self.registers.pc + 1));
-                    self.registers.pc = self.registers.pc + @as(u16, offset) + 2;
+                if (self.getZFlag() == true) {
+                    const pc_i16: i16 = @bitCast(self.registers.pc);
+                    const offset: i16 = @as(i16, mem.readByte(self.registers.pc + 1));
+                    const result: i16 = pc_i16 + offset + 2;
+                    self.registers.pc = @intCast(result);
                 } else {
                     self.registers.pc = self.registers.pc + 2;
                 }
+                pc_changed = true;
             }, // core
             0x29 => return,
             0x2A => {
@@ -110,12 +125,15 @@ pub const CPU = struct {
             0x2E => self.registers.l = mem.readByte(self.registers.pc + 1),
             0x2F => return,
             0x30 => {
-                if (self.getCFlag() == 0) {
-                    const offset: i8 = @bitCast(mem.readByte(self.registers.pc + 1));
-                    self.registers.pc = self.registers.pc + @as(u16, offset) + 2;
+                if (self.getCFlag() == false) {
+                    const pc_i16: i16 = @bitCast(self.registers.pc);
+                    const offset: i16 = @as(i16, mem.readByte(self.registers.pc + 1));
+                    const result: i16 = pc_i16 + offset + 2;
+                    self.registers.pc = @intCast(result);
                 } else {
                     self.registers.pc = self.registers.pc + 2;
                 }
+                pc_changed = true;
             }, // core
             0x31 => return,
             0x32 => {
@@ -128,12 +146,13 @@ pub const CPU = struct {
             0x36 => mem.writeByte(self.getHL(), mem.readByte(self.registers.pc + 1)), // core
             0x37 => return,
             0x38 => {
-                if (self.getCFlag() == 0) {
-                    const offset: i8 = @bitCast(mem.readByte(self.registers.pc + 1));
-                    self.registers.pc = self.registers.pc + @as(u16, offset) + 2;
-                } else {
-                    self.registers.pc = self.registers.pc + 2;
+                if (self.getCFlag() == true) {
+                    const pc_i16: i16 = @bitCast(self.registers.pc);
+                    const offset: i16 = @as(i16, mem.readByte(self.registers.pc + 1));
+                    const result: i16 = pc_i16 + offset + 2;
+                    self.registers.pc = @intCast(result);
                 }
+                pc_changed = true;
             }, // core
             0x39 => return,
             0x3A => {
@@ -286,6 +305,7 @@ pub const CPU = struct {
                 const low: u16 = @as(u16, mem.readByte(self.registers.pc + 1));
                 const high: u16 = @as(u16, mem.readByte(self.registers.pc + 2));
                 self.registers.pc = (high << 8) | low;
+                pc_changed = true;
             },
             0xC4 => return,
             0xC5 => {
@@ -303,6 +323,7 @@ pub const CPU = struct {
                 self.registers.sp = self.registers.sp + 2;
                 const combined: u16 = combine8bits(high, low);
                 self.registers.pc = combined;
+                pc_changed = true;
             }, // core
             0xCA => return,
             0xCB => return,
@@ -391,6 +412,9 @@ pub const CPU = struct {
             0xFD => return,
             0xFE => return,
             0xFF => return,
+        }
+        if (!pc_changed) {
+            self.registers.pc = self.registers.pc + info.bytes;
         }
     }
     // REGISTER PAIRS (private helpers)

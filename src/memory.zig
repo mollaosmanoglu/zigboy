@@ -1,4 +1,4 @@
-const cartridge = @import("cartridge");
+const cartridge = @import("cartridge.zig");
 
 pub const Memory = struct {
     rom: cartridge.ROM,
