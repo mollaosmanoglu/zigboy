@@ -1,5 +1,6 @@
 // TODO: Clean up code thus far add error handling, and move to phase 4.
 const memory = @import("memory.zig");
+const cartridge = @import("cartridge.zig");
 const opcode_info = @import("helpers/opcode.zig");
 
 const CPUError = error{OpcodeNotFound};
@@ -488,3 +489,26 @@ pub const CPU = struct {
         self.registers.f = self.registers.f | @as(u8, @intFromBool(value) << 4);
     }
 };
+
+test "rom" {
+    const expect = @import("std").testing.expect;
+
+    const game: []const u8 = &[_]u8{
+        0x00, // NOP
+        0x18, // JR r8
+        0xFE, // offset -2 (jump back to JR at PC=1)
+    };
+
+    var gb_rom: cartridge.ROM = cartridge.ROM.init();
+    try gb_rom.loadData(game);
+    var gb_memory: memory.Memory = memory.Memory.init(gb_rom);
+    var gb_cpu: CPU = CPU.init();
+
+    // Run a few steps
+    for (0..4) |_| {
+        try gb_cpu.step(&gb_memory);
+    }
+
+    // After correct JR behavior, PC should be stuck at 1
+    try expect(gb_cpu.registers.pc == 1);
+}
