@@ -1,4 +1,7 @@
-// TODO: Clean up code thus far add error handling, and move to phase 4.
+//TODO: centralize relative jump math, centralize 16-bit immediate reads, use opcode table fully, factor stack push/pop patterns
+//TODO: move to phase 4
+
+const std = @import("std");
 const memory = @import("memory.zig");
 const cartridge = @import("cartridge.zig");
 const opcode_info = @import("helpers/opcode.zig");
@@ -34,14 +37,14 @@ pub const CPU = struct {
         return .{ high, low };
     }
     // step function
-    pub fn step(self: *CPU, mem: *memory.Memory) !void {
+    pub fn step(self: *CPU, mem: *memory.Memory) void {
         const opcode = mem.readByte(self.registers.pc); //fetch
         const info = opcode_info.OPCODES[opcode]; //decode
 
         var pc_changed: bool = false;
 
         switch (opcode) { //execute
-            0x00 => return, // core
+            0x00 => {}, // core
             0x01 => { // core
                 const low: u16 = @as(u16, mem.readByte(self.registers.pc + 1));
                 const high: u16 = @as(u16, mem.readByte(self.registers.pc + 2));
@@ -71,8 +74,8 @@ pub const CPU = struct {
             0x17 => return,
             0x18 => {
                 const pc_i16: i16 = @bitCast(self.registers.pc);
-                const offset: i16 = @as(i16, mem.readByte(self.registers.pc + 1));
-                const result: i16 = pc_i16 + offset + 2;
+                const offset: i8 = @bitCast(mem.readByte(self.registers.pc + 1));
+                const result: i16 = pc_i16 + @as(i16, offset) + 2;
                 self.registers.pc = @intCast(result);
                 pc_changed = true;
             }, // core
@@ -417,6 +420,8 @@ pub const CPU = struct {
         if (!pc_changed) {
             self.registers.pc = self.registers.pc + info.bytes;
         }
+
+        return;
     }
     // REGISTER PAIRS (private helpers)
     // getters
@@ -491,8 +496,6 @@ pub const CPU = struct {
 };
 
 test "rom" {
-    const expect = @import("std").testing.expect;
-
     const game: []const u8 = &[_]u8{
         0x00, // NOP
         0x18, // JR r8
@@ -507,8 +510,9 @@ test "rom" {
     // Run a few steps
     for (0..4) |_| {
         try gb_cpu.step(&gb_memory);
+        std.debug.print("pc is {d}\n", .{gb_cpu.registers.pc});
     }
+    const expectEqual = std.testing.expectEqual;
 
-    // After correct JR behavior, PC should be stuck at 1
-    try expect(gb_cpu.registers.pc == 1);
+    try expectEqual(@as(u16, 1), gb_cpu.registers.pc);
 }
