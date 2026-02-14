@@ -1,0 +1,19 @@
+# Development Logs - ZigBoy Emulator
+
+> **Current Task**: Refactor PC management in `src/cpu.zig` (fetchByte/fetchWord).
+> **Naming Style**: Zig camelCase (treat acronyms as words).
+> **Editor**: Neovim/LazyVim (auto-reload enabled).
+
+---
+
+## 2026-02-14 (Saturday)
+
+### ❌ Errors & Debugging
+| Error / Issue | Status |
+| :--- | :--- |
+| Neovim not showing external changes | FIXED (:e! or autocmd) |
+| PC math repetition in opcodes | PENDING (needs fetch helpers) |
+
+### 📝 Notes
+- Use `w`, `b`, `e` for word jumps; `%` for brace jumps.
+- Run tests with `zig test src/cpu.zig`.

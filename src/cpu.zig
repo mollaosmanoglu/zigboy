@@ -6,7 +6,7 @@ const memory = @import("memory.zig");
 const cartridge = @import("cartridge.zig");
 const opcode_info = @import("helpers/opcode.zig");
 
-const CPUError = error{OpcodeNotFound};
+const CpuError = error{OpcodeNotFound};
 
 const Registers = struct {
     a: u8 = 0,
@@ -28,30 +28,36 @@ pub const CPU = struct {
         return .{ .registers = .{} };
     }
     //HELPERS
-    fn combine8bits(high: u8, low: u8) u16 {
+    fn combine8Bits(high: u8, low: u8) u16 {
         return (@as(u16, high) << 8) | @as(u16, low);
     }
-    fn deconstruct16bit(value: u16) struct { u8, u8 } {
+    fn deconstruct16Bit(value: u16) struct { u8, u8 } {
         const high: u8 = @truncate(value >> 8);
         const low: u8 = @truncate(value);
         return .{ high, low };
+    }
+    fn relativeJump(pc: u16, mem: *memory.Memory, n: usize) u16 {
+        const pcI16: i16 = @bitCast(pc);
+        const offset: i8 = @bitCast(mem.readByte(pc + 1));
+        const result: i16 = pcI16 + @as(i16, offset) + n;
+        return @intCast(result);
     }
     // step function
     pub fn step(self: *CPU, mem: *memory.Memory) void {
         const opcode = mem.readByte(self.registers.pc); //fetch
         const info = opcode_info.OPCODES[opcode]; //decode
 
-        var pc_changed: bool = false;
+        var pcChanged: bool = false;
 
         switch (opcode) { //execute
             0x00 => {}, // core
             0x01 => { // core
                 const low: u16 = @as(u16, mem.readByte(self.registers.pc + 1));
                 const high: u16 = @as(u16, mem.readByte(self.registers.pc + 2));
-                self.setBC((high << 8) | low);
+                self.setBc((high << 8) | low);
             },
-            0x02 => mem.writeByte(self.getBC(), self.registers.a), // core
-            0x03 => self.setBC(self.getBC() + 1), // core
+            0x02 => mem.writeByte(self.getBc(), self.registers.a), // core
+            0x03 => self.setBc(self.getBc() + 1), // core
             0x04 => return,
             0x05 => return,
             0x06 => self.registers.b = mem.readByte(self.registers.pc + 1), // core
@@ -59,7 +65,7 @@ pub const CPU = struct {
             0x08 => return,
             0x09 => return,
             0x0A => return,
-            0x0B => self.setBC(self.getBC() - 1), // core
+            0x0B => self.setBc(self.getBc() - 1), // core
             0x0C => return,
             0x0D => return,
             0x0E => self.registers.c = mem.readByte(self.registers.pc + 1), // core
@@ -73,95 +79,80 @@ pub const CPU = struct {
             0x16 => self.registers.d = mem.readByte(self.registers.pc + 1), // core
             0x17 => return,
             0x18 => {
-                const pc_i16: i16 = @bitCast(self.registers.pc);
-                const offset: i8 = @bitCast(mem.readByte(self.registers.pc + 1));
-                const result: i16 = pc_i16 + @as(i16, offset) + 2;
-                self.registers.pc = @intCast(result);
-                pc_changed = true;
+                self.registers.pc = relativeJump(self.registers.pc, mem, 2);
+                pcChanged = true;
             }, // core
             0x19 => return,
             0x1A => return,
-            0x1B => self.setDE(self.getDE() - 1), // core
+            0x1B => self.setDe(self.getDe() - 1), // core
             0x1C => return,
             0x1D => return,
             0x1E => self.registers.e = mem.readByte(self.registers.pc + 1), // core
             0x1F => return,
             0x20 => {
                 if (self.getZFlag() == false) {
-                    const pc_i16: i16 = @bitCast(self.registers.pc);
-                    const offset: i16 = @as(i16, mem.readByte(self.registers.pc + 1));
-                    const result: i16 = pc_i16 + offset + 2;
-                    self.registers.pc = @intCast(result);
+                    self.registers.pc = relativeJump(self.registers.pc, mem, 2);
                 } else {
                     self.registers.pc = self.registers.pc + 2;
                 }
-                pc_changed = true;
+                pcChanged = true;
             }, // core
             0x21 => return,
             0x22 => {
-                mem.writeByte(self.getHL(), self.registers.a);
-                self.setHL(self.getHL() - 1);
+                mem.writeByte(self.getHl(), self.registers.a);
+                self.setHl(self.getHl() - 1);
             }, // core
-            0x23 => self.setHL(self.getHL() + 1), // core
+            0x23 => self.setHl(self.getHl() + 1), // core
             0x24 => return,
             0x25 => return,
             0x26 => self.registers.h = mem.readByte(self.registers.pc + 1), // core
             0x27 => return,
             0x28 => {
                 if (self.getZFlag() == true) {
-                    const pc_i16: i16 = @bitCast(self.registers.pc);
-                    const offset: i16 = @as(i16, mem.readByte(self.registers.pc + 1));
-                    const result: i16 = pc_i16 + offset + 2;
-                    self.registers.pc = @intCast(result);
+                    self.registers.pc = relativeJump(self.registers.pc, mem, 2);
                 } else {
                     self.registers.pc = self.registers.pc + 2;
                 }
-                pc_changed = true;
+                pcChanged = true;
             }, // core
             0x29 => return,
             0x2A => {
-                mem.writeByte(self.getHL(), self.registers.a);
-                self.setHL(self.getHL() - 1);
+                mem.writeByte(self.getHl(), self.registers.a);
+                self.setHl(self.getHl() - 1);
             }, // core
-            0x2B => self.setHL(self.getHL() - 1), // core
+            0x2B => self.setHl(self.getHl() - 1), // core
             0x2C => return,
             0x2D => return,
             0x2E => self.registers.l = mem.readByte(self.registers.pc + 1),
             0x2F => return,
             0x30 => {
                 if (self.getCFlag() == false) {
-                    const pc_i16: i16 = @bitCast(self.registers.pc);
-                    const offset: i16 = @as(i16, mem.readByte(self.registers.pc + 1));
-                    const result: i16 = pc_i16 + offset + 2;
-                    self.registers.pc = @intCast(result);
+                    self.registers.pc = relativeJump(self.registers.pc, mem, 2);
                 } else {
                     self.registers.pc = self.registers.pc + 2;
                 }
-                pc_changed = true;
+                pcChanged = true;
             }, // core
             0x31 => return,
             0x32 => {
-                mem.writeByte(self.getHL(), self.registers.a);
-                self.setHL(self.getHL() - 1);
+                mem.writeByte(self.getHl(), self.registers.a);
+                self.setHl(self.getHl() - 1);
             }, // core
             0x33 => return,
             0x34 => return,
             0x35 => return,
-            0x36 => mem.writeByte(self.getHL(), mem.readByte(self.registers.pc + 1)), // core
+            0x36 => mem.writeByte(self.getHl(), mem.readByte(self.registers.pc + 1)), // core
             0x37 => return,
             0x38 => {
                 if (self.getCFlag() == true) {
-                    const pc_i16: i16 = @bitCast(self.registers.pc);
-                    const offset: i16 = @as(i16, mem.readByte(self.registers.pc + 1));
-                    const result: i16 = pc_i16 + offset + 2;
-                    self.registers.pc = @intCast(result);
+                    self.registers.pc = relativeJump(self.registers.pc, mem, 2);
                 }
-                pc_changed = true;
+                pcChanged = true;
             }, // core
             0x39 => return,
             0x3A => {
-                self.registers.a = mem.readByte(self.getHL());
-                self.setHL(self.getHL() - 1);
+                self.registers.a = mem.readByte(self.getHl());
+                self.setHl(self.getHl() - 1);
             }, // core
             0x3B => return,
             0x3C => return,
@@ -223,14 +214,14 @@ pub const CPU = struct {
             0x74 => return,
             0x75 => return,
             0x76 => return,
-            0x77 => mem.writeByte(self.getHL(), self.registers.a), // core
+            0x77 => mem.writeByte(self.getHl(), self.registers.a), // core
             0x78 => return,
             0x79 => return,
             0x7A => return,
             0x7B => return,
             0x7C => return,
             0x7D => return,
-            0x7E => self.registers.a = mem.readByte(self.getHL()), // core
+            0x7E => self.registers.a = mem.readByte(self.getHl()), // core
             0x7F => return,
             0x80 => self.registers.a = self.registers.a + self.registers.b,
             0x81 => return,
@@ -300,8 +291,8 @@ pub const CPU = struct {
             0xC1 => {
                 const low: u8 = mem.readByte(self.registers.sp);
                 const high: u8 = mem.readByte(self.registers.sp + 1);
-                const combined = combine8bits(high, low);
-                self.setBC(combined);
+                const combined = combine8Bits(high, low);
+                self.setBc(combined);
                 self.registers.sp = self.registers.sp + 2;
             }, // core
             0xC2 => return,
@@ -309,11 +300,11 @@ pub const CPU = struct {
                 const low: u16 = @as(u16, mem.readByte(self.registers.pc + 1));
                 const high: u16 = @as(u16, mem.readByte(self.registers.pc + 2));
                 self.registers.pc = (high << 8) | low;
-                pc_changed = true;
+                pcChanged = true;
             },
             0xC4 => return,
             0xC5 => {
-                const high, const low = deconstruct16bit(self.getBC());
+                const high, const low = deconstruct16Bit(self.getBc());
                 mem.writeByte(self.registers.sp - 1, high);
                 mem.writeByte(self.registers.sp - 2, low);
                 self.registers.sp = self.registers.sp - 2;
@@ -325,9 +316,9 @@ pub const CPU = struct {
                 const low: u8 = mem.readByte(self.registers.sp);
                 const high: u8 = mem.readByte(self.registers.sp + 1);
                 self.registers.sp = self.registers.sp + 2;
-                const combined: u16 = combine8bits(high, low);
+                const combined: u16 = combine8Bits(high, low);
                 self.registers.pc = combined;
-                pc_changed = true;
+                pcChanged = true;
             }, // core
             0xCA => return,
             0xCB => return,
@@ -339,15 +330,15 @@ pub const CPU = struct {
             0xD1 => {
                 const low: u8 = mem.readByte(self.registers.sp);
                 const high: u8 = mem.readByte(self.registers.sp + 1);
-                const combined = combine8bits(high, low);
-                self.setDE(combined);
+                const combined = combine8Bits(high, low);
+                self.setDe(combined);
                 self.registers.sp = self.registers.sp + 2;
             }, // core
             0xD2 => return,
             0xD3 => return,
             0xD4 => return,
             0xD5 => {
-                const high, const low = deconstruct16bit(self.getDE());
+                const high, const low = deconstruct16Bit(self.getDe());
                 mem.writeByte(self.registers.sp - 1, high);
                 mem.writeByte(self.registers.sp - 2, low);
                 self.registers.sp = self.registers.sp - 2;
@@ -366,15 +357,15 @@ pub const CPU = struct {
             0xE1 => {
                 const low: u8 = mem.readByte(self.registers.sp);
                 const high: u8 = mem.readByte(self.registers.sp + 1);
-                const combined = combine8bits(high, low);
-                self.setHL(combined);
+                const combined = combine8Bits(high, low);
+                self.setHl(combined);
                 self.registers.sp = self.registers.sp + 2;
             }, // core
             0xE2 => return,
             0xE3 => return,
             0xE4 => return,
             0xE5 => {
-                const high, const low = deconstruct16bit(self.getHL());
+                const high, const low = deconstruct16Bit(self.getHl());
                 mem.writeByte(self.registers.sp - 1, high);
                 mem.writeByte(self.registers.sp - 2, low);
                 self.registers.sp = self.registers.sp - 2;
@@ -393,15 +384,15 @@ pub const CPU = struct {
             0xF1 => {
                 const low: u8 = mem.readByte(self.registers.sp);
                 const high: u8 = mem.readByte(self.registers.sp + 1);
-                const combined = combine8bits(high, low);
-                self.setAF(combined);
+                const combined = combine8Bits(high, low);
+                self.setAf(combined);
                 self.registers.sp = self.registers.sp + 2;
             }, // core
             0xF2 => return,
             0xF3 => return,
             0xF4 => return,
             0xF5 => {
-                const high, const low = deconstruct16bit(self.getAF());
+                const high, const low = deconstruct16Bit(self.getAf());
                 mem.writeByte(self.registers.sp - 1, high);
                 mem.writeByte(self.registers.sp - 2, low);
                 self.registers.sp = self.registers.sp - 2;
@@ -417,7 +408,7 @@ pub const CPU = struct {
             0xFE => return,
             0xFF => return,
         }
-        if (!pc_changed) {
+        if (!pcChanged) {
             self.registers.pc = self.registers.pc + info.bytes;
         }
 
@@ -425,36 +416,36 @@ pub const CPU = struct {
     }
     // REGISTER PAIRS (private helpers)
     // getters
-    fn getAF(self: CPU) u16 {
-        return combine8bits(self.registers.a, self.registers.f);
+    fn getAf(self: CPU) u16 {
+        return combine8Bits(self.registers.a, self.registers.f);
     }
-    fn getBC(self: CPU) u16 {
-        return combine8bits(self.registers.b, self.registers.c);
+    fn getBc(self: CPU) u16 {
+        return combine8Bits(self.registers.b, self.registers.c);
     }
-    fn getDE(self: CPU) u16 {
-        return combine8bits(self.registers.d, self.registers.e);
+    fn getDe(self: CPU) u16 {
+        return combine8Bits(self.registers.d, self.registers.e);
     }
-    fn getHL(self: CPU) u16 {
-        return combine8bits(self.registers.h, self.registers.l);
+    fn getHl(self: CPU) u16 {
+        return combine8Bits(self.registers.h, self.registers.l);
     }
     // setters
-    fn setAF(self: *CPU, value: u16) void {
-        const high, const low = deconstruct16bit(value);
+    fn setAf(self: *CPU, value: u16) void {
+        const high, const low = deconstruct16Bit(value);
         self.registers.a = high;
         self.registers.f = low & 0xF0;
     }
-    fn setBC(self: *CPU, value: u16) void {
-        const high, const low = deconstruct16bit(value);
+    fn setBc(self: *CPU, value: u16) void {
+        const high, const low = deconstruct16Bit(value);
         self.registers.b = high;
         self.registers.c = low;
     }
-    fn setDE(self: *CPU, value: u16) void {
-        const high, const low = deconstruct16bit(value);
+    fn setDe(self: *CPU, value: u16) void {
+        const high, const low = deconstruct16Bit(value);
         self.registers.d = high;
         self.registers.e = low;
     }
-    fn setHL(self: *CPU, value: u16) void {
-        const high, const low = deconstruct16bit(value);
+    fn setHl(self: *CPU, value: u16) void {
+        const high, const low = deconstruct16Bit(value);
         self.registers.h = high;
         self.registers.l = low;
     }
@@ -502,17 +493,17 @@ test "rom" {
         0xFE, // offset -2 (jump back to JR at PC=1)
     };
 
-    var gb_rom: cartridge.ROM = cartridge.ROM.init();
-    try gb_rom.loadData(game);
-    var gb_memory: memory.Memory = memory.Memory.init(gb_rom);
-    var gb_cpu: CPU = CPU.init();
+    var gbRom: cartridge.ROM = cartridge.ROM.init();
+    try gbRom.loadData(game);
+    var gbMemory: memory.Memory = memory.Memory.init(gbRom);
+    var gbCpu: CPU = CPU.init();
 
     // Run a few steps
     for (0..4) |_| {
-        try gb_cpu.step(&gb_memory);
-        std.debug.print("pc is {d}\n", .{gb_cpu.registers.pc});
+        gbCpu.step(&gbMemory);
+        std.debug.print("pc is {d}\n", .{gbCpu.registers.pc});
     }
     const expectEqual = std.testing.expectEqual;
 
-    try expectEqual(@as(u16, 1), gb_cpu.registers.pc);
+    try expectEqual(@as(u16, 1), gbCpu.registers.pc);
 }
