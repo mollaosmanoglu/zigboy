@@ -14,7 +14,9 @@ pub fn main() !void {
     var gb_memory: memory.Memory = memory.Memory.init(gb_rom);
     var gb_cpu: cpu.CPU = cpu.CPU.init();
     while (true) {
-        try gb_cpu.step(&gb_memory);
+        std.debug.print("PRE: PC=0x{X:0>4} OP=0x{X:0>2}\n", .{ gb_cpu.registers.pc, gb_memory.readByte(gb_cpu.registers.pc) });
+        gb_cpu.step(&gb_memory);
+        std.debug.print("PST: PC=0x{X:0>4}\n", .{ gb_cpu.registers.pc });
     }
 
     defer allocator.free(game_data);

@@ -1,7 +1,5 @@
 # Development Logs - ZigBoy Emulator
 
-> **Current Task**: Refactor PC management in `src/cpu.zig` (fetchByte/fetchWord).
-> **Naming Style**: Zig camelCase (treat acronyms as words).
 > **Editor**: Neovim/LazyVim (auto-reload enabled).
 
 ---
@@ -14,6 +12,22 @@
 | Neovim not showing external changes | FIXED (:e! or autocmd) |
 | PC math repetition in opcodes | PENDING (needs fetch helpers) |
 
+---
+
+## 2026-02-15 (Sunday)
+
+### ❌ Errors & Debugging
+| Error / Issue | Status |
+| :--- | :--- |
+| cpu.zig:41:54: type mismatch (i16 vs usize) | PENDING |
+| main.zig:10:23: error.FileNotFound | RESOLVED |
+| CPU stuck in infinite loop on stubs | RESOLVED |
+| Confusion between @as and @intCast | RESOLVED |
+
 ### 📝 Notes
-- Use `w`, `b`, `e` for word jumps; `%` for brace jumps.
-- Run tests with `zig test src/cpu.zig`.
+- `@as`: Safe widening (small -> large).
+- `@intCast`: Risky narrowing (large -> small).
+- `@bitCast`: Reinterpret bits (same size, e.g., u8 -> i8).
+- **Type Logic**: Use `@bitCast` when you need the same bits to mean something else (e.g., treating a `u8` offset as a signed `i8` for backwards jumps). Use `@as` when you want to change the "container" size while keeping the same value.
+- **Root Context**: Always run `zig build run` from the project root. `FileNotFound` occurs if run from `src/` because relative paths (e.g., `roms/`) fail.
+- **Stub Logic**: Use `=> {},` instead of `=> return,` for unimplemented opcodes. `return` exits the entire `step()` function, skipping the Program Counter increment at the bottom and causing an infinite loop on the same instruction.

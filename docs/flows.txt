@@ -1,0 +1,23 @@
+ HOST             CPU              MMU                 PPU  
+                      |                |                   |
+                      |                |                   |
+     -----step()------>                |                   |
+                      |                |                   |
+                      |                |                   |
+                      |                |                   |
+                      +-----Read PC---->                   |
+                      <---Opcode-------+                   |
+                      |                |                   |
+                      |                |                   |
+                      +-----Read/Write->                   |
+                      <-----Data-------+                   |
+                      |                |                   |
+                      |                |                   |
+                      |                +----Render Line----+
+                      |                |                   |
+                      |                |                   |
+                      <--VBLANK INT----+                   |
+  <-----Frame Ready---+                |                   |
+                      |                |                   |
+  ------Draw Canvas--->                |                   |
+                      v                v                   v
